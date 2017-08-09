@@ -52,7 +52,7 @@ function writeDocument(events,title,ordreDuJour,today){
   writeEndTime(doc,events,labelStyle);
   writeStartTime(doc,events,labelStyle);
   writeTitle(doc,title);
-  putLogo(doc);
+  putLogo(doc);  
 }
 
 function removeTagwordFromCalendarDesc(events,ordreDuJour,tagword) {
