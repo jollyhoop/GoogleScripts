@@ -1,0 +1,171 @@
+function doGet() {  
+  var events = findEvents(events);
+  var tagword = ("#notes");
+    
+  for (i in events) {
+    // Loops through each event and gets meeting attributes 
+    var title = events[i].getTitle();
+    var ordreDuJour = events[i].getDescription();
+    var file_exists = DriveApp.getFilesByName(title).hasNext();  
+    
+    if (events[i].getDescription().indexOf(tagword) >-1 && file_exists == false) {
+      
+      //Gets Event description and removes Tagword from Calendar description
+      ordreDuJour = removeTagwordFromCalendarDesc(events,ordreDuJour,tagword);
+      
+      writeDocument(events,title,ordreDuJour);     
+    }       
+  }  
+  
+  //Add/Delete Triggers and writes html Output  
+  var htmlString = triggerControlAndHtmlOutput();
+  return HtmlService.createHtmlOutput(htmlString);
+}  
+
+function writeDocument(events,title,ordreDuJour){
+  //Style for titles
+  var labelStyle ={};
+  labelStyle[DocumentApp.Attribute.BOLD] = true;
+  labelStyle[DocumentApp.Attribute.FONT_SIZE] = 11;
+  
+  //Create document
+  var doc = DocumentApp.create(title);
+  writeOrdreDuJour(doc,ordreDuJour,labelStyle);
+  writeGuestNamesAndAttendance(doc,events,labelStyle);
+  writeOrganizer(doc,events,labelStyle);
+  writeLocation(doc,events,labelStyle);
+  writeEndTime(doc,events,labelStyle);
+  writeStartTime(doc,events,labelStyle);
+  writeTitle(doc,title);
+  putLogo(doc);
+}
+
+function findEvents(events) {
+  var hours = 2  
+  var now = new Date();
+  var period_till_now = new Date(now.getTime() - (hours * 60 * 60 * 1000));
+  var period_from_now = new Date(now.getTime() + (hours * 60 * 60 * 1000)); 
+  events = CalendarApp.getDefaultCalendar().getEvents(period_till_now, period_from_now);  
+  return events;
+}
+
+function removeTagwordFromCalendarDesc(events,ordreDuJour,tagword) {
+  ordreDuJour = ordreDuJour.replace(tagword,"");
+  events[i].setDescription(ordreDuJour);
+  return ordreDuJour;
+}
+
+function formatEmailToName(str) {
+  str = eraseEmailDomain(str);
+  str = replaceDots(str);
+  str = toTitleCase(str);
+  if (str.search("-")> -1) {
+    str = majusculeApresTiret(str);
+  }
+  return str;
+}
+
+function eraseEmailDomain(str) {
+  var indexDomain = str.toString().indexOf('@');  
+  return str.toString().substring(0 , indexDomain);
+}
+
+function replaceDots(str) {
+  while (str.search("\\.")>-1) { 
+    str = str.replace(".", " ");                         
+  }  
+  return str;
+}
+
+function majusculeApresTiret(str) {      
+  var tiret = str.indexOf("-");  
+  str = str.substring(0, tiret+1) + str.charAt(tiret+1).toUpperCase() + str.substring(tiret+2); 
+  return str;
+}
+
+function writeOrdreDuJour(doc,ordreDuJour,labelStyle) {
+  doc.getBody().editAsText()
+  .insertText(0, '\n' + 'Ordre du jour:  ' + ordreDuJour + '\n\n')
+  .setAttributes(0,13, labelStyle)
+}
+
+function writeGuestNamesAndAttendance(doc,events,labelStyle) {
+  var guestlist = events[i].getGuestList();  
+  for (var j=0;j<guestlist.length;j++) {  
+    var guestEmail = guestlist[j].getEmail();
+    var guestStatus = guestlist[j].getGuestStatus();  
+    var nomGuest = formatEmailToName(guestEmail);
+    doc.getBody().editAsText()
+    .insertText(0, nomGuest + "  : " + guestStatus + "\n")
+  }
+  doc.getBody().editAsText()
+  .insertText(0, 'Invités:\n')
+  .setAttributes(0, 8, labelStyle);
+}
+
+function writeOrganizer(doc,events,labelStyle) {
+  var owner = events[i].getCreators();
+  owner = formatEmailToName(owner); 
+  doc.getBody().editAsText().insertText(0, owner + '\n\n')
+  doc.getBody().editAsText()
+  .insertText(0, 'Organisateur:  ')
+  .setAttributes(0, 11, labelStyle);  
+}
+
+function writeLocation(doc,events,labelStyle) {
+  var location = events[i].getLocation();
+      doc.getBody().editAsText()
+      .insertText(0, 'Location:  ' + location + '\n\n')
+      .setAttributes(0, 8, labelStyle);
+}
+
+function writeEndTime(doc,events,labelStyle) {
+  var eventend = events[i].getEndTime();
+  eventend = Utilities.formatDate(eventend,"America/Montreal","EEE MMM dd YYYY HH:mm:ss z");
+  doc.getBody().editAsText()
+  .insertText(0, 'Fin:       ' + eventend + '\n\n')
+  .setAttributes(0, 3, labelStyle);
+}
+
+function writeStartTime(doc,events,labelStyle) {
+  var eventstart = events[i].getStartTime();
+  eventstart = Utilities.formatDate(eventstart,"America/Montreal","EEE MMM dd YYYY HH:mm:ss z");
+  doc.getBody().editAsText()
+  .insertText(0, 'Début:  ' + eventstart + '\n')  
+  .setAttributes(0, 5, labelStyle);
+}
+
+function writeTitle(doc,title) {
+  doc.getBody().editAsText()
+  .insertText(0, '\n\n\n' + title + '\n\n')
+  .setFontSize(0, title.length+2, 14)
+  .setBold(0, title.length+2, true)
+  .setForegroundColor(0, title.length+2, '#ea2c3f');   
+}
+
+function putLogo(doc) {
+  var image = UrlFetchApp.fetch("https://fintour.croesus.com/wp-content/uploads/2017/02/partners-logo-croesus.png");
+  var picture = doc.getChild(0).asParagraph().addPositionedImage(image);
+  picture.setWidth(180);
+  picture.setHeight(40);     
+}
+
+//Cette fonction met la lettre après un espace en majuscule
+function toTitleCase(str) {    
+    return str.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
+}
+
+function triggerControlAndHtmlOutput() {
+  var checkTriggers = ScriptApp.getProjectTriggers(); 
+  var stringHtml;
+  if (checkTriggers.toString() ==''){
+    ScriptApp.newTrigger('doGet').timeBased().everyHours(1).create();   
+    stringHtml = ("<h1>Script de prises de notes</h1><b>Le script s'exécutera automatiquement une fois par heure</b>");
+  }else {
+    for (var i = 0; i < checkTriggers.length; i++) {
+      ScriptApp.deleteTrigger(checkTriggers[i]);      
+    }
+    stringHtml = ("<h1>Plus de prises de notes</h1><b>Le script ne s'exécutera plus sur votre machine</b>");
+  }
+  return stringHtml;
+}
